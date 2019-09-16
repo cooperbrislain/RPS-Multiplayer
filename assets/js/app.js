@@ -33,7 +33,7 @@ var UUID = (function() {
 })();
 
 let playerID = localStorage.getItem('playerID');
-if (playerID.length >= 10) {
+if (playerID) {
     console.log(`using player ID: ${playerID}`);
 } else {
     playerID = UUID.generate();
@@ -57,7 +57,16 @@ firebase.initializeApp(firebaseConfig);
 let database = firebase.database();
 
 /* END FIREBASE */
-
+const do_move = (which) => {
+    nextMove = which;
+    let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
+    Game.Players[which_player].ready = true;
+    if (Game.Players[0].ready && Game.Players[1].ready) {
+        Game.Players[which_player].move = nextMove;
+        database.ref().set(Game);
+    }
+    database.ref().set(Game);
+}
 
 $(document).ready(() => {
     $('.btn-rock').on('click', (e) => {
@@ -82,12 +91,51 @@ database.ref().on("value", (snapshot) => {
         database.ref().set(Game);
     }
     if (Game.Players.length < 2) {
-        if (Game.Players[0] != playerID) {
+        if (Game.Players[0].uuid != playerID) {
             Game.Players.push({
                 uuid: playerID,
                 ready: false,
                 move: null
             });
+            database.ref().set(Game);
+        }
+    }
+    if (Game.Players.length < 2) {
+        $('#modal-waiting').modal('show');
+    }
+    if (Game.Players[0].ready && Game.Players[1].ready) {
+        let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
+        Game.Players[which_player].move = nextMove;
+        database.ref().set(Game);
+    }
+    if (Game.Players[0].move && Game.Players[1].move) {
+        if (Game.Players[0].move == Game.Players[1].move) {
+            console.log('tie!');
+        } else {
+            if (Game.Players[0].move == 'rock') {
+                if (Game.Players[1].move == 'paper') {
+                    console.log('1 wins');
+                }
+                if (Game.Players[1].move == 'scissors') {
+                    console.log('0 wins');
+                }
+            }
+            if (Game.Players[0].move == 'paper') {
+                if (Game.Players[1].move == 'rock') {
+                    console.log('0 wins');
+                }
+                if (Game.Players[1].move == 'scissors') {
+                    console.log('1 wins');
+                }
+            }
+            if (Game.Players[0].move == 'scissors') {
+                if (Game.Players[1].move == 'paper') {
+                    console.log('0 wins');
+                }
+                if (Game.Players[1].move == 'rock') {
+                    console.log('1 wins');
+                }
+            }
         }
     }
 });
