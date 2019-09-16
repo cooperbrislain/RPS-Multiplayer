@@ -103,39 +103,53 @@ database.ref().on("value", (snapshot) => {
     if (Game.Players.length < 2) {
         $('#modal-waiting').modal('show');
     }
-    if (Game.Players[0].ready && Game.Players[1].ready) {
-        let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
-        Game.Players[which_player].move = nextMove;
+    if (Game.Winner !== undefined) {
+        if (Game.Winner == -1) {
+            console.log('A Tie!');
+        } else if (Game.Players[Game.Winner].uuid == playerID) {
+            console.log('You win!');
+        } else {
+            console.log('You Lose!');
+        }
+        Game.Winner = null;
+        Game.Players[0].move = null;
+        Game.Players[1].move = null;
+        Game.Players[0].ready = null;
+        Game.Players[1].ready = null;
         database.ref().set(Game);
-    }
-    if (Game.Players[0].move && Game.Players[1].move) {
+    } else if (Game.Players[0].move && Game.Players[1].move) {
         if (Game.Players[0].move == Game.Players[1].move) {
-            console.log('tie!');
+            Game.Winner = -1;
         } else {
             if (Game.Players[0].move == 'rock') {
                 if (Game.Players[1].move == 'paper') {
-                    console.log('1 wins');
+                    Game.Winner = 1;
                 }
                 if (Game.Players[1].move == 'scissors') {
-                    console.log('0 wins');
+                   Game.Winner = 0;
                 }
             }
             if (Game.Players[0].move == 'paper') {
                 if (Game.Players[1].move == 'rock') {
-                    console.log('0 wins');
+                    Game.Winner = 0;
                 }
                 if (Game.Players[1].move == 'scissors') {
-                    console.log('1 wins');
+                    Game.Winner = 1;
                 }
             }
             if (Game.Players[0].move == 'scissors') {
                 if (Game.Players[1].move == 'paper') {
-                    console.log('0 wins');
+                    Game.Winner = 0;
                 }
                 if (Game.Players[1].move == 'rock') {
-                    console.log('1 wins');
+                    Game.Winner = 1;
                 }
             }
         }
+        database.ref().set(Game);
+    } else if (Game.Players[0].ready && Game.Players[1].ready) {
+        let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
+        Game.Players[which_player].move = nextMove;
+        database.ref().set(Game);
     }
 });
