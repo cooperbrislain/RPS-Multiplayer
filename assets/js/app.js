@@ -1,4 +1,4 @@
-const Game = {
+let Game = {
     Players: [
         /* 
         {
@@ -74,5 +74,20 @@ $(document).ready(() => {
 });
 
 database.ref().on("value", (snapshot) => {
-    Game = JSON.decode(snapshot);
+    Game = snapshot.val();
+    if (Game === null) {
+        Game = {
+            Players: []
+        }
+        database.ref().set(Game);
+    }
+    if (Game.Players.length < 2) {
+        if (Game.Players[0] != playerID) {
+            Game.Players.push({
+                uuid: playerID,
+                ready: false,
+                move: null
+            });
+        }
+    }
 });
