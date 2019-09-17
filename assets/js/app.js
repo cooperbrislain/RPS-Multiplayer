@@ -128,8 +128,12 @@ database.ref('game').on("value", (snapshot) => {
             $('#modal-result .modal-body').text('A Tie!');
         } else if (Game.Players[Game.Winner].uuid == playerID) {
             $('#modal-result .modal-body').text('You Win!');
+            $('#modal-result .modal-footer.loser').hide();
+            $('#modal-result .modal-footer.winner').show();
         } else {
             $('#modal-result .modal-body').text('You Lose!');
+            $('#modal-result .modal-footer.loser').show();
+            $('#modal-result .modal-footer.winner').hide();
         }
         $('#modal-result').modal('show');
         Game.Players[0].move = null;
