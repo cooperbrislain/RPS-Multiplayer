@@ -61,6 +61,8 @@ const do_move = (which) => {
     nextMove = which;
     let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
     Game.Players[which_player].ready = true;
+    $(`.btn-${which}`).addClass('picked');
+    $('.btn:not(.picked)').addClass('notpicked');
     if (Game.Players[0].ready && Game.Players[1].ready) {
         Game.Players[which_player].move = nextMove;
         database.ref().set(Game);
@@ -105,12 +107,13 @@ database.ref().on("value", (snapshot) => {
     }
     if (Game.Winner !== undefined) {
         if (Game.Winner == -1) {
-            console.log('A Tie!');
+            $('#modal-result .modal-body').text('A Tie!');
         } else if (Game.Players[Game.Winner].uuid == playerID) {
-            console.log('You win!');
+            $('#modal-result .modal-body').text('You Win!');
         } else {
-            console.log('You Lose!');
+            $('#modal-result .modal-body').text('You Lose!');
         }
+        $('#modal-result').modal('show');
         Game.Winner = null;
         Game.Players[0].move = null;
         Game.Players[1].move = null;
