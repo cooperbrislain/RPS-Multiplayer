@@ -1,15 +1,3 @@
-let Game = {
-    Players: [
-        /* 
-        {
-            uuid: xxxxxxx,
-            ready: true/false,
-            move: null
-        }
-        */
-    ]
-}
-
 /**
  * Fast UUID generator, RFC4122 version 4 compliant.
  * @author Jeff Ward (jcward.com).
@@ -31,16 +19,6 @@ var UUID = (function() {
     }
     return self;
 })();
-
-let playerID = localStorage.getItem('playerID');
-if (playerID) {
-    console.log(`using player ID: ${playerID}`);
-} else {
-    playerID = UUID.generate();
-    console.log(`assigning player ID: ${playerID}`);
-    localStorage.setItem('playerID', playerID);
-}
-let nextMove = null;
 /* FIREBASE */
 const firebaseConfig = {
     apiKey: "AIzaSyACSShSnvrgEte-P-TJKPiumWr5OuFu80c",
@@ -57,6 +35,30 @@ firebase.initializeApp(firebaseConfig);
 let database = firebase.database();
 
 /* END FIREBASE */
+
+let Game = {
+    Players: [
+        /* 
+        {
+            uuid: xxxxxxx,
+            ready: true/false,
+            move: null
+            last_seen: null
+        }
+        */
+    ]
+}
+
+let playerID = localStorage.getItem('playerID');
+if (playerID) {
+    console.log(`using player ID: ${playerID}`);
+} else {
+    playerID = UUID.generate();
+    console.log(`assigning player ID: ${playerID}`);
+    localStorage.setItem('playerID', playerID);
+}
+let nextMove = undefined;
+
 const do_move = (which) => {
     nextMove = which;
     let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
@@ -65,9 +67,10 @@ const do_move = (which) => {
     $('.btn:not(.picked)').addClass('notpicked');
     if (Game.Players[0].ready && Game.Players[1].ready) {
         Game.Players[which_player].move = nextMove;
-        database.ref().set(Game);
+        Game.Players[which_player].last_seen = moment().unix();
+        database.ref('game').set(Game);
     }
-    database.ref().set(Game);
+    database.ref('game').set(Game);
 }
 
 $(document).ready(() => {
@@ -82,28 +85,43 @@ $(document).ready(() => {
     $('.btn-scissors').on('click', (e) => {
         do_move('scissors');
     });
+
+    setInterval(() => {
+        // time out if player hasn't moved in too long
+    },1000);
 });
 
-database.ref().on("value", (snapshot) => {
+database.ref('game').on("value", (snapshot) => {
     Game = snapshot.val();
     if (Game === null) {
         Game = {
             Players: []
         }
-        database.ref().set(Game);
+        database.ref('game').set(Game);
     }
-    if (Game.Players.length < 2) {
+    if (Game.Players.length == 0) {
+        Game.Players.push({
+            uuid: playerID,
+            last_seen: moment().unix(),
+            ready: false,
+            move: null
+        });
+        database.ref('game').set(Game);
+    } else if (Game.Players.length == 1) {
         if (Game.Players[0].uuid != playerID) {
             Game.Players.push({
                 uuid: playerID,
+                last_seen: moment().unix(),
                 ready: false,
                 move: null
             });
-            database.ref().set(Game);
+            database.ref('game').set(Game);
         }
     }
     if (Game.Players.length < 2) {
         $('#modal-waiting').modal('show');
+    } else {
+        $('#modal-waiting').modal('hide');
     }
     if (Game.Winner !== undefined) {
         if (Game.Winner == -1) {
@@ -114,12 +132,14 @@ database.ref().on("value", (snapshot) => {
             $('#modal-result .modal-body').text('You Lose!');
         }
         $('#modal-result').modal('show');
-        Game.Winner = null;
         Game.Players[0].move = null;
         Game.Players[1].move = null;
         Game.Players[0].ready = null;
         Game.Players[1].ready = null;
-        database.ref().set(Game);
+        Game.Players = [Game.Players[Game.Winner]];
+        Game.Winner = null;
+        $('.btn').removeClass('picked notpicked');
+        database.ref('game').set(Game);
     } else if (Game.Players[0].move && Game.Players[1].move) {
         if (Game.Players[0].move == Game.Players[1].move) {
             Game.Winner = -1;
@@ -149,10 +169,16 @@ database.ref().on("value", (snapshot) => {
                 }
             }
         }
-        database.ref().set(Game);
+        database.ref('game').set(Game);
     } else if (Game.Players[0].ready && Game.Players[1].ready) {
         let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
         Game.Players[which_player].move = nextMove;
-        database.ref().set(Game);
+        database.ref('game').set(Game);
     }
+
+    $(window).on("beforeunload", (e) => {
+        let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
+        Game.Players = [];
+        database.ref('game').set(Game);
+    });
 });
