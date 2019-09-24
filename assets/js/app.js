@@ -105,7 +105,7 @@ $(document).ready(() => {
 
 database.ref('game').on("value", (snapshot) => {
     Game = snapshot.val();
-    if (Game === null) {
+    if (Game !== undefined) {
         Game = {
             Players: []
         };
