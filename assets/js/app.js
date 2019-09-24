@@ -49,6 +49,16 @@ let Game = {
     ]
 }
 
+let Scores = {
+    /*
+        uuid: {
+            wins: #,
+            losses: #,
+            ties: #
+        }
+    */
+}
+
 let playerID = localStorage.getItem('playerID');
 if (playerID) {
     console.log(`using player ID: ${playerID}`);
@@ -59,6 +69,13 @@ if (playerID) {
 }
 let nextMove = undefined;
 
+const rps_compare = (a,b) => {
+    const rps = ['rock','paper','scissors'];
+    const a1 = rps.indexOf(a);
+    const b1 = rps.indexOf(b);
+    return Math.abs(a1-b1)==2? (a1-b1)/-2 : a1-b1;
+}
+
 const do_move = (which) => {
     nextMove = which;
     let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
@@ -68,7 +85,6 @@ const do_move = (which) => {
     if (Game.Players[0].ready && Game.Players[1].ready) {
         Game.Players[which_player].move = nextMove;
         Game.Players[which_player].last_seen = moment().unix();
-        database.ref('game').set(Game);
     }
     database.ref('game').set(Game);
 }
@@ -85,10 +101,6 @@ $(document).ready(() => {
     $('.btn-scissors').on('click', (e) => {
         do_move('scissors');
     });
-
-    setInterval(() => {
-        // time out if player hasn't moved in too long
-    },1000);
 });
 
 database.ref('game').on("value", (snapshot) => {
@@ -96,7 +108,7 @@ database.ref('game').on("value", (snapshot) => {
     if (Game === null) {
         Game = {
             Players: []
-        }
+        };
         database.ref('game').set(Game);
     }
     if (Game.Players.length == 0) {
@@ -124,55 +136,35 @@ database.ref('game').on("value", (snapshot) => {
         $('#modal-waiting').modal('hide');
     }
     if (Game.Winner !== undefined) {
+        if (Scores[Game.Players[0].uuid] === undefined) Scores[Game.Players[0].uuid] = { wins: 0, losses: 0, ties: 0 }
+        if (Scores[Game.Players[1].uuid] === undefined) Scores[Game.Players[1].uuid] = { wins: 0, losses: 0, ties: 0 }
         if (Game.Winner == -1) {
             $('#modal-result .modal-body').text('A Tie!');
+            Scores[playerID].ties++;
         } else if (Game.Players[Game.Winner].uuid == playerID) {
             $('#modal-result .modal-body').text('You Win!');
             $('#modal-result .modal-footer.loser').hide();
             $('#modal-result .modal-footer.winner').show();
+            Scores[playerID].wins++;
         } else {
             $('#modal-result .modal-body').text('You Lose!');
             $('#modal-result .modal-footer.loser').show();
             $('#modal-result .modal-footer.winner').hide();
+            Scores[playerID].losses++
         }
         $('#modal-result').modal('show');
         Game.Players[0].move = null;
         Game.Players[1].move = null;
         Game.Players[0].ready = null;
         Game.Players[1].ready = null;
-        Game.Players = [Game.Players[Game.Winner]];
+        Game.Players = [];
         Game.Winner = null;
         $('.btn').removeClass('picked notpicked');
+        database.ref('scores').set(Scores);
         database.ref('game').set(Game);
     } else if (Game.Players[0].move && Game.Players[1].move) {
-        if (Game.Players[0].move == Game.Players[1].move) {
-            Game.Winner = -1;
-        } else {
-            if (Game.Players[0].move == 'rock') {
-                if (Game.Players[1].move == 'paper') {
-                    Game.Winner = 1;
-                }
-                if (Game.Players[1].move == 'scissors') {
-                   Game.Winner = 0;
-                }
-            }
-            if (Game.Players[0].move == 'paper') {
-                if (Game.Players[1].move == 'rock') {
-                    Game.Winner = 0;
-                }
-                if (Game.Players[1].move == 'scissors') {
-                    Game.Winner = 1;
-                }
-            }
-            if (Game.Players[0].move == 'scissors') {
-                if (Game.Players[1].move == 'paper') {
-                    Game.Winner = 0;
-                }
-                if (Game.Players[1].move == 'rock') {
-                    Game.Winner = 1;
-                }
-            }
-        }
+        let result = rps_compare(Game.Players[0].move, Game.Players[1].move);
+        Game.Winner = result==-1? 1 : result-1; 
         database.ref('game').set(Game);
     } else if (Game.Players[0].ready && Game.Players[1].ready) {
         let which_player = Game.Players.findIndex(playerOb => { return playerOb.uuid === playerID; });
@@ -185,4 +177,8 @@ database.ref('game').on("value", (snapshot) => {
         Game.Players = [];
         database.ref('game').set(Game);
     });
+});
+
+database.ref('scores').on('value', (snapshot) => {
+    Scores = snapshot.val();
 });
